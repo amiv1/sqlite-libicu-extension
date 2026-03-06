@@ -1,0 +1,130 @@
+name: Build and Release SQLite ICU Extension
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Daily at midnight UTC
+  workflow_dispatch:      # Allow manual triggering
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get-version.outputs.version }}
+      should-release: ${{ steps.check-release.outputs.should-release }}
+    steps:
+      - name: Get latest SQLite version
+        id: get-version
+        run: |
+          VERSION=$(curl -sSf https://www.sqlite.org/src/doc/trunk/VERSION)
+          echo "SQLite version: $VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Check if release already exists
+        id: check-release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.get-version.outputs.version }}"
+          if gh release view "v${VERSION}" --repo "${{ github.repository }}" > /dev/null 2>&1; then
+            echo "Release v${VERSION} already exists, skipping"
+            echo "should-release=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Release v${VERSION} not found, will build and release"
+            echo "should-release=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  build-macos-arm64:
+    needs: check-version
+    if: needs.check-version.outputs.should-release == 'true'
+    runs-on: macos-14  # macos-14 is Apple Silicon (ARM64)
+    steps:
+      - name: Install dependencies
+        run: brew install sqlite icu4c
+
+      - name: Download SQLite source
+        run: |
+          curl -sSf -o sqlite.tar.gz "https://www.sqlite.org/src/tarball?uuid=trunk&name=sqlite"
+          tar -xzf sqlite.tar.gz
+
+      - name: Build libicu.so
+        run: |
+          ICU_PREFIX="$(brew --prefix icu4c)"
+          SQLITE_PREFIX="$(brew --prefix sqlite)"
+          cd sqlite/ext/icu/
+          gcc -fPIC -shared icu.c \
+              -I"${SQLITE_PREFIX}/include" \
+              -I"${ICU_PREFIX}/include" \
+              -L"${ICU_PREFIX}/lib" \
+              -licuuc -licui18n -licuio \
+              -undefined dynamic_lookup \
+              -o libicu.so
+          zip libicu-mac-arm64.zip libicu.so
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: libicu-mac-arm64
+          path: sqlite/ext/icu/libicu-mac-arm64.zip
+
+  build-linux-amd64:
+    needs: check-version
+    if: needs.check-version.outputs.should-release == 'true'
+    runs-on: ubuntu-latest  # ubuntu-latest is AMD64
+    steps:
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y gcc libicu-dev libsqlite3-dev
+
+      - name: Download SQLite source
+        run: |
+          curl -sSf -o sqlite.tar.gz "https://www.sqlite.org/src/tarball?uuid=trunk&name=sqlite"
+          tar -xzf sqlite.tar.gz
+
+      - name: Build libicu.so
+        run: |
+          cd sqlite/ext/icu/
+          gcc -fPIC -shared icu.c \
+              -I/usr/include \
+              -licuuc -licui18n -licuio \
+              -o libicu.so
+          zip libicu-linux-amd64.zip libicu.so
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: libicu-linux-amd64
+          path: sqlite/ext/icu/libicu-linux-amd64.zip
+
+  create-release:
+    needs: [check-version, build-macos-arm64, build-linux-amd64]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.check-version.outputs.version }}
+        run: |
+          gh release create "v${VERSION}" \
+            --repo "${{ github.repository }}" \
+            --title "SQLite ICU Extension v${VERSION}" \
+            --notes "SQLite ICU loadable extension built from SQLite ${VERSION}.
+
+          ## Downloads
+          | Platform | File |
+          |----------|------|
+          | macOS ARM64 (Apple Silicon) | \`libicu-mac-arm64.zip\` |
+          | Linux AMD64 | \`libicu-linux-amd64.zip\` |
+
+          ## Usage
+          Unzip and load the extension in SQLite:
+          \`\`\`sql
+          SELECT load_extension('./libicu');
+          \`\`\`" \
+            artifacts/libicu-mac-arm64/libicu-mac-arm64.zip \
+            artifacts/libicu-linux-amd64/libicu-linux-amd64.zip
