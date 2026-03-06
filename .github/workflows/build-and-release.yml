@@ -42,8 +42,10 @@ jobs:
         run: brew install sqlite icu4c
 
       - name: Download SQLite source
+        env:
+          VERSION: ${{ needs.check-version.outputs.version }}
         run: |
-          curl -sSf -o sqlite.tar.gz "https://www.sqlite.org/src/tarball?uuid=trunk&name=sqlite"
+          curl -sSf -o sqlite.tar.gz "https://www.sqlite.org/src/tarball?uuid=version-${VERSION}&name=sqlite"
           tar -xzf sqlite.tar.gz
 
       - name: Build libicu.so
@@ -75,8 +77,10 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y gcc libicu-dev libsqlite3-dev
 
       - name: Download SQLite source
+        env:
+          VERSION: ${{ needs.check-version.outputs.version }}
         run: |
-          curl -sSf -o sqlite.tar.gz "https://www.sqlite.org/src/tarball?uuid=trunk&name=sqlite"
+          curl -sSf -o sqlite.tar.gz "https://www.sqlite.org/src/tarball?uuid=version-${VERSION}&name=sqlite"
           tar -xzf sqlite.tar.gz
 
       - name: Build libicu.so
