@@ -128,17 +128,16 @@ jobs:
       - name: Build libicu.dll
         env:
           VERSION: ${{ needs.check-version.outputs.version }}
-          VCPKG_ROOT: C:\vcpkg
         shell: cmd
         run: |
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
           cd sqlite\ext\icu
           cl /LD /MD icu.c ^
-            /I"%VCPKG_ROOT%\installed\x64-windows\include" ^
+            /I"%VCPKG_INSTALLATION_ROOT%\installed\x64-windows\include" ^
             /Fe:libicu.dll ^
-            "%VCPKG_ROOT%\installed\x64-windows\lib\icuuc.lib" ^
-            "%VCPKG_ROOT%\installed\x64-windows\lib\icuin.lib" ^
-            "%VCPKG_ROOT%\installed\x64-windows\lib\icuio.lib"
+            "%VCPKG_INSTALLATION_ROOT%\installed\x64-windows\lib\icuuc.lib" ^
+            "%VCPKG_INSTALLATION_ROOT%\installed\x64-windows\lib\icuin.lib" ^
+            "%VCPKG_INSTALLATION_ROOT%\installed\x64-windows\lib\icuio.lib"
           powershell Compress-Archive -Path libicu.dll -DestinationPath "libicu-windows-x64-%VERSION%.zip"
 
       - name: Upload artifact
