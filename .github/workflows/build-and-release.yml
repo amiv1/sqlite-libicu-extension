@@ -33,10 +33,10 @@ jobs:
             echo "should-release=true" >> "$GITHUB_OUTPUT"
           fi
 
-  build-macos-arm64:
+  build-macos:
     needs: check-version
     if: needs.check-version.outputs.should-release == 'true'
-    runs-on: macos-14  # macos-14 is Apple Silicon (ARM64)
+    runs-on: macos-14  # Apple Silicon; also cross-compiles for Intel x86_64
     steps:
       - name: Install dependencies
         run: brew install sqlite icu4c
@@ -48,27 +48,35 @@ jobs:
           curl -sSf -o sqlite.tar.gz "https://www.sqlite.org/src/tarball?uuid=version-${VERSION}&name=sqlite"
           tar -xzf sqlite.tar.gz
 
-      - name: Build libicu.so
+      - name: Build libicu.so (ARM64 and x86_64)
         env:
           VERSION: ${{ needs.check-version.outputs.version }}
         run: |
           ICU_PREFIX="$(brew --prefix icu4c)"
           SQLITE_PREFIX="$(brew --prefix sqlite)"
           cd sqlite/ext/icu/
-          gcc -fPIC -shared icu.c \
-              -I"${SQLITE_PREFIX}/include" \
-              -I"${ICU_PREFIX}/include" \
-              -L"${ICU_PREFIX}/lib" \
-              -licuuc -licui18n -licuio \
-              -undefined dynamic_lookup \
-              -o libicu.so
-          zip "libicu-mac-arm64-${VERSION}.zip" libicu.so
+          for ARCH in arm64 x86_64; do
+            gcc -arch "${ARCH}" -fPIC -shared icu.c \
+                -I"${SQLITE_PREFIX}/include" \
+                -I"${ICU_PREFIX}/include" \
+                -L"${ICU_PREFIX}/lib" \
+                -licuuc -licui18n -licuio \
+                -undefined dynamic_lookup \
+                -o libicu.so
+            zip "libicu-mac-${ARCH}-${VERSION}.zip" libicu.so
+          done
 
-      - name: Upload artifact
+      - name: Upload ARM64 artifact
         uses: actions/upload-artifact@v4
         with:
           name: libicu-mac-arm64
           path: sqlite/ext/icu/libicu-mac-arm64-*.zip
+
+      - name: Upload x86_64 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: libicu-mac-x86_64
+          path: sqlite/ext/icu/libicu-mac-x86_64-*.zip
 
   build-linux-amd64:
     needs: check-version
@@ -101,43 +109,6 @@ jobs:
         with:
           name: libicu-linux-amd64
           path: sqlite/ext/icu/libicu-linux-amd64-*.zip
-
-  build-macos-x86_64:
-    needs: check-version
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: macos-13  # macos-13 is Intel (x86_64)
-    steps:
-      - name: Install dependencies
-        run: brew install sqlite icu4c
-
-      - name: Download SQLite source
-        env:
-          VERSION: ${{ needs.check-version.outputs.version }}
-        run: |
-          curl -sSf -o sqlite.tar.gz "https://www.sqlite.org/src/tarball?uuid=version-${VERSION}&name=sqlite"
-          tar -xzf sqlite.tar.gz
-
-      - name: Build libicu.so
-        env:
-          VERSION: ${{ needs.check-version.outputs.version }}
-        run: |
-          ICU_PREFIX="$(brew --prefix icu4c)"
-          SQLITE_PREFIX="$(brew --prefix sqlite)"
-          cd sqlite/ext/icu/
-          gcc -fPIC -shared icu.c \
-              -I"${SQLITE_PREFIX}/include" \
-              -I"${ICU_PREFIX}/include" \
-              -L"${ICU_PREFIX}/lib" \
-              -licuuc -licui18n -licuio \
-              -undefined dynamic_lookup \
-              -o libicu.so
-          zip "libicu-mac-x86_64-${VERSION}.zip" libicu.so
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: libicu-mac-x86_64
-          path: sqlite/ext/icu/libicu-mac-x86_64-*.zip
 
   build-windows-amd64:
     needs: check-version
@@ -177,7 +148,7 @@ jobs:
           path: sqlite/ext/icu/libicu-windows-amd64-*.zip
 
   create-release:
-    needs: [check-version, build-macos-arm64, build-macos-x86_64, build-linux-amd64, build-windows-amd64]
+    needs: [check-version, build-macos, build-linux-amd64, build-windows-amd64]
     runs-on: ubuntu-latest
     permissions:
       contents: write
