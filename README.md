@@ -4,26 +4,31 @@ Automated builds of the [SQLite ICU extension](https://www.sqlite.org/src/file/e
 
 Releases are created automatically whenever a new SQLite version is published, using GitHub Actions.
 
+## Use case
+
+Primary purpose of this is to be able to load ICU extension into Beets: https://beets.io/
+
+See this issue for details: https://github.com/beetbox/beets/issues/6382#issuecomment-4013188931
+
+It may be possible to use it outside of Beets, but for that you're on your own.
+
 ## Downloads
 
 Pre-built binaries are available on the [Releases](../../releases) page.
 
-## Usage
+## Usage with Beets
 
-1. Download and unzip the archive for your platform.
-2. Load the extension in SQL:
+Extract archive and place it in `~/.config/beets/lib/`
 
-```sql
-SELECT load_extension('/path/to/libicu');
+Then configure your beets `beet config -e`:
+
+```yaml
+plugins:
+  - loadext
+
+loadext:
+  - lib/libicu.so
 ```
-
-Or from the SQLite CLI:
-
-```sh
-sqlite3 -cmd ".load /path/to/libicu"
-```
-
-Once loaded, the extension provides Unicode-aware functions such as `icu_load_collation()`, `lower()`, and `upper()` that correctly handle non-ASCII characters.
 
 ## License
 
