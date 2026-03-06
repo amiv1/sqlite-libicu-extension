@@ -1,6 +1,6 @@
 # sqlite-libicu-extension
 
-Automated builds of the [SQLite ICU extension](https://www.sqlite.org/src/file/ext/icu/README.txt) as a loadable shared library for macOS ARM64, Linux AMD64, and Windows AMD64.
+Automated builds of the [SQLite ICU extension](https://www.sqlite.org/src/file/ext/icu/README.txt) as a loadable shared library for macOS, Linux, and Windows.
 
 Releases are created automatically whenever a new SQLite version is published, using GitHub Actions.
 
@@ -32,7 +32,7 @@ A GitHub Actions workflow runs daily:
 
 1. Fetches the current SQLite version from the SQLite fossil repository.
 2. Skips if a release for that version already exists.
-3. Builds `libicu.so` on `macos-14` (Apple Silicon), `ubuntu-latest` (AMD64), and `windows-latest` (AMD64) in parallel.
+3. Builds `libicu.so` on `macos-14` (Apple Silicon), `macos-13` (Intel), `ubuntu-latest` (AMD64), and `windows-latest` (AMD64) in parallel.
 4. Creates a GitHub release tagged `v{version}` with all three zip archives attached.
 
 ## License
