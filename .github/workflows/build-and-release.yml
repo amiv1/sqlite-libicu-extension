@@ -78,10 +78,10 @@ jobs:
           name: libicu-mac-x86_64
           path: sqlite/ext/icu/libicu-mac-x86_64-*.zip
 
-  build-linux-amd64:
+  build-linux-x64:
     needs: check-version
     if: needs.check-version.outputs.should-release == 'true'
-    runs-on: ubuntu-latest  # ubuntu-latest is AMD64
+    runs-on: ubuntu-latest  # ubuntu-latest is x64
     steps:
       - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install -y gcc libicu-dev libsqlite3-dev
@@ -102,18 +102,18 @@ jobs:
               -I/usr/include \
               -licuuc -licui18n -licuio \
               -o libicu.so
-          zip "libicu-linux-amd64-${VERSION}.zip" libicu.so
+          zip "libicu-linux-x64-${VERSION}.zip" libicu.so
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: libicu-linux-amd64
-          path: sqlite/ext/icu/libicu-linux-amd64-*.zip
+          name: libicu-linux-x64
+          path: sqlite/ext/icu/libicu-linux-x64-*.zip
 
-  build-windows-amd64:
+  build-windows-x64:
     needs: check-version
     if: needs.check-version.outputs.should-release == 'true'
-    runs-on: windows-latest  # windows-latest is AMD64
+    runs-on: windows-latest  # windows-latest is x64
     steps:
       - name: Install ICU via vcpkg
         run: vcpkg install icu:x64-windows
@@ -139,16 +139,16 @@ jobs:
             "%VCPKG_ROOT%\installed\x64-windows\lib\icuuc.lib" ^
             "%VCPKG_ROOT%\installed\x64-windows\lib\icuin.lib" ^
             "%VCPKG_ROOT%\installed\x64-windows\lib\icuio.lib"
-          powershell Compress-Archive -Path libicu.dll -DestinationPath "libicu-windows-amd64-%VERSION%.zip"
+          powershell Compress-Archive -Path libicu.dll -DestinationPath "libicu-windows-x64-%VERSION%.zip"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: libicu-windows-amd64
-          path: sqlite/ext/icu/libicu-windows-amd64-*.zip
+          name: libicu-windows-x64
+          path: sqlite/ext/icu/libicu-windows-x64-*.zip
 
   create-release:
-    needs: [check-version, build-macos, build-linux-amd64, build-windows-amd64]
+    needs: [check-version, build-macos, build-linux-x64, build-windows-x64]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -173,8 +173,8 @@ jobs:
           |----------|------|
           | macOS ARM64 (Apple Silicon) | \`libicu-mac-arm64-${VERSION}.zip\` |
           | macOS x86_64 (Intel) | \`libicu-mac-x86_64-${VERSION}.zip\` |
-          | Linux AMD64 | \`libicu-linux-amd64-${VERSION}.zip\` |
-          | Windows AMD64 | \`libicu-windows-amd64-${VERSION}.zip\` |
+          | Linux x64 | \`libicu-linux-x64-${VERSION}.zip\` |
+          | Windows x64 | \`libicu-windows-x64-${VERSION}.zip\` |
 
           ## Usage
           Unzip and load the extension in SQLite:
@@ -183,5 +183,5 @@ jobs:
           \`\`\`" \
             artifacts/libicu-mac-arm64/libicu-mac-arm64-${VERSION}.zip \
             artifacts/libicu-mac-x86_64/libicu-mac-x86_64-${VERSION}.zip \
-            artifacts/libicu-linux-amd64/libicu-linux-amd64-${VERSION}.zip \
-            artifacts/libicu-windows-amd64/libicu-windows-amd64-${VERSION}.zip
+            artifacts/libicu-linux-x64/libicu-linux-x64-${VERSION}.zip \
+            artifacts/libicu-windows-x64/libicu-windows-x64-${VERSION}.zip

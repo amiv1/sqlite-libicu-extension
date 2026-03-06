@@ -32,7 +32,7 @@ A GitHub Actions workflow runs daily:
 
 1. Fetches the current SQLite version from the SQLite fossil repository.
 2. Skips if a release for that version already exists.
-3. Builds `libicu.so` on `macos-14` (Apple Silicon, also cross-compiled for Intel x86_64), `ubuntu-latest` (AMD64), and `windows-latest` (AMD64) in parallel.
+3. Builds `libicu.so` on `macos-14` (Apple Silicon, also cross-compiled for Intel x86_64), `ubuntu-latest` (x64), and `windows-latest` (x64) in parallel.
 4. Creates a GitHub release tagged `v{version}` with all three zip archives attached.
 
 ## License
