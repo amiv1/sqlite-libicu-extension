@@ -110,44 +110,8 @@ jobs:
           name: libicu-linux-x64
           path: sqlite/ext/icu/libicu-linux-x64-*.zip
 
-  build-windows-x64:
-    needs: check-version
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: windows-latest  # windows-latest is x64
-    steps:
-      - name: Install ICU via vcpkg
-        run: vcpkg install icu:x64-windows
-
-      - name: Download SQLite source
-        env:
-          VERSION: ${{ needs.check-version.outputs.version }}
-        run: |
-          curl -sSf -o sqlite.tar.gz "https://www.sqlite.org/src/tarball?uuid=version-$env:VERSION&name=sqlite"
-          tar -xzf sqlite.tar.gz
-
-      - name: Build libicu.dll
-        env:
-          VERSION: ${{ needs.check-version.outputs.version }}
-        shell: cmd
-        run: |
-          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-          cd sqlite\ext\icu
-          cl /LD /MD icu.c ^
-            /I"%VCPKG_INSTALLATION_ROOT%\installed\x64-windows\include" ^
-            /Fe:libicu.dll ^
-            "%VCPKG_INSTALLATION_ROOT%\installed\x64-windows\lib\icuuc.lib" ^
-            "%VCPKG_INSTALLATION_ROOT%\installed\x64-windows\lib\icuin.lib" ^
-            "%VCPKG_INSTALLATION_ROOT%\installed\x64-windows\lib\icuio.lib"
-          powershell Compress-Archive -Path libicu.dll -DestinationPath "libicu-windows-x64-%VERSION%.zip"
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: libicu-windows-x64
-          path: sqlite/ext/icu/libicu-windows-x64-*.zip
-
   create-release:
-    needs: [check-version, build-macos, build-linux-x64, build-windows-x64]
+    needs: [check-version, build-macos, build-linux-x64]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -173,14 +137,12 @@ jobs:
           | macOS ARM64 (Apple Silicon) | \`libicu-mac-arm64-${VERSION}.zip\` |
           | macOS x86_64 (Intel) | \`libicu-mac-x86_64-${VERSION}.zip\` |
           | Linux x64 | \`libicu-linux-x64-${VERSION}.zip\` |
-          | Windows x64 | \`libicu-windows-x64-${VERSION}.zip\` |
 
           ## Usage
-          Unzip and load the extension in SQLite:
+          Unzip and load the extension in SQL:
           \`\`\`sql
-          SELECT load_extension('./libicu');
+          SELECT load_extension('/path/to/libicu');
           \`\`\`" \
             artifacts/libicu-mac-arm64/libicu-mac-arm64-${VERSION}.zip \
             artifacts/libicu-mac-x86_64/libicu-mac-x86_64-${VERSION}.zip \
-            artifacts/libicu-linux-x64/libicu-linux-x64-${VERSION}.zip \
-            artifacts/libicu-windows-x64/libicu-windows-x64-${VERSION}.zip
+            artifacts/libicu-linux-x64/libicu-linux-x64-${VERSION}.zip
