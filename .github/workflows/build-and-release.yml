@@ -136,10 +136,7 @@ jobs:
           | Linux x64 | \`libicu-linux-x64-${VERSION}.zip\` |
 
           ## Usage
-          Unzip and load the extension in SQL:
-          \`\`\`sql
-          SELECT load_extension('/path/to/libicu');
-          \`\`\`" \
+          Unzip and load the extension." \
             artifacts/libicu-mac-arm64/libicu-mac-arm64-${VERSION}.zip \
             artifacts/libicu-mac-x86_64/libicu-mac-x86_64-${VERSION}.zip \
             artifacts/libicu-linux-x64/libicu-linux-x64-${VERSION}.zip
