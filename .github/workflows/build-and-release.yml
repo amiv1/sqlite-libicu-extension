@@ -15,7 +15,7 @@ jobs:
       - name: Get latest SQLite version
         id: get-version
         run: |
-          VERSION=$(curl -sSf https://www.sqlite.org/src/doc/trunk/VERSION)
+          VERSION=$(curl -sSf https://www.sqlite.org/src/doc/release/VERSION)
           echo "SQLite version: $VERSION"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
