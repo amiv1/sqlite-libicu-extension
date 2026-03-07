@@ -2,7 +2,7 @@
 
 Automated builds of the [SQLite ICU extension](https://www.sqlite.org/src/file/ext/icu/README.txt) as a loadable shared library for macOS and Linux.
 
-Releases are created automatically whenever a new SQLite version is published, using GitHub Actions.
+Releases are created automatically whenever the ICU extension source (`icu.c`) changes, using GitHub Actions. Because [`icu.c` is rarely modified](https://www.sqlite.org/src/blame?filename=ext/icu/icu.c&checkin=trunk), not every SQLite version bump will produce a new release.
 
 ## Use case
 

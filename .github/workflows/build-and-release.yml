@@ -11,6 +11,7 @@ jobs:
     outputs:
       version: ${{ steps.get-version.outputs.version }}
       should-release: ${{ steps.check-release.outputs.should-release }}
+      icu-changed: ${{ steps.check-icu-hash.outputs.icu-changed }}
     steps:
       - name: Get latest SQLite version
         id: get-version
@@ -33,9 +34,43 @@ jobs:
             echo "should-release=true" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Check if ICU source changed
+        id: check-icu-hash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.get-version.outputs.version }}
+        run: |
+          # Download current icu.c from the latest SQLite source
+          curl -sSf -o sqlite.tar.gz "https://www.sqlite.org/src/tarball?uuid=version-${VERSION}&name=sqlite"
+          tar -xzf sqlite.tar.gz sqlite/ext/icu/icu.c sqlite/ext/icu/sqliteicu.h
+          CURRENT_HASH=$(sha256sum sqlite/ext/icu/icu.c sqlite/ext/icu/sqliteicu.h | sha256sum | cut -d' ' -f1)
+          echo "Current ICU source hash: ${CURRENT_HASH}"
+
+          # Fetch the hash stored in the latest release, if any
+          LATEST_RELEASE=$(gh release list --repo "${{ github.repository }}" --limit 1 --json tagName -q '.[0].tagName' 2>/dev/null || true)
+          PREVIOUS_HASH=""
+          if [ -n "${LATEST_RELEASE}" ]; then
+            PREVIOUS_HASH=$(gh release download "${LATEST_RELEASE}" \
+              --repo "${{ github.repository }}" \
+              --pattern "icu-checksums.txt" \
+              --output - 2>/dev/null \
+              | grep "^ICU_COMBINED_HASH=" | cut -d'=' -f2 || true)
+          fi
+
+          if [ -z "${PREVIOUS_HASH}" ]; then
+            echo "No prior icu-checksums.txt found (bootstrap or old release), treating ICU source as changed"
+            echo "icu-changed=true" >> "$GITHUB_OUTPUT"
+          elif [ "${CURRENT_HASH}" != "${PREVIOUS_HASH}" ]; then
+            echo "ICU source hash changed: ${PREVIOUS_HASH} -> ${CURRENT_HASH}"
+            echo "icu-changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ICU source hash unchanged"
+            echo "icu-changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
   build-macos:
     needs: check-version
-    if: needs.check-version.outputs.should-release == 'true'
+    if: needs.check-version.outputs.should-release == 'true' || needs.check-version.outputs.icu-changed == 'true'
     runs-on: macos-14
     steps:
       - name: Download SQLite source
@@ -77,7 +112,7 @@ jobs:
 
   build-linux-x64:
     needs: check-version
-    if: needs.check-version.outputs.should-release == 'true'
+    if: needs.check-version.outputs.should-release == 'true' || needs.check-version.outputs.icu-changed == 'true'
     runs-on: ubuntu-latest  # ubuntu-latest is x64
     steps:
       - name: Install dependencies
@@ -118,6 +153,20 @@ jobs:
         with:
           path: artifacts
 
+      - name: Generate icu-checksums.txt
+        env:
+          VERSION: ${{ needs.check-version.outputs.version }}
+        run: |
+          curl -sSf -o sqlite.tar.gz "https://www.sqlite.org/src/tarball?uuid=version-${VERSION}&name=sqlite"
+          tar -xzf sqlite.tar.gz sqlite/ext/icu/icu.c sqlite/ext/icu/sqliteicu.h
+          ICU_C_HASH=$(sha256sum sqlite/ext/icu/icu.c | cut -d' ' -f1)
+          ICU_H_HASH=$(sha256sum sqlite/ext/icu/sqliteicu.h | cut -d' ' -f1)
+          COMBINED_HASH=$(sha256sum sqlite/ext/icu/icu.c sqlite/ext/icu/sqliteicu.h | sha256sum | cut -d' ' -f1)
+          printf 'SQLITE_VERSION=%s\nICU_C_SHA256=%s\nICU_H_SHA256=%s\nICU_COMBINED_HASH=%s\n' \
+            "${VERSION}" "${ICU_C_HASH}" "${ICU_H_HASH}" "${COMBINED_HASH}" > icu-checksums.txt
+          echo "Generated icu-checksums.txt:"
+          cat icu-checksums.txt
+
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -139,4 +188,5 @@ jobs:
           Unzip and load the extension." \
             artifacts/libicu-mac-arm64/libicu-mac-arm64-${VERSION}.zip \
             artifacts/libicu-mac-x86_64/libicu-mac-x86_64-${VERSION}.zip \
-            artifacts/libicu-linux-x64/libicu-linux-x64-${VERSION}.zip
+            artifacts/libicu-linux-x64/libicu-linux-x64-${VERSION}.zip \
+            icu-checksums.txt
