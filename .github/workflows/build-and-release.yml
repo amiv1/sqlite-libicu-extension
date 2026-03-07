@@ -36,11 +36,8 @@ jobs:
   build-macos:
     needs: check-version
     if: needs.check-version.outputs.should-release == 'true'
-    runs-on: macos-14  # Apple Silicon; also cross-compiles for Intel x86_64
+    runs-on: macos-14
     steps:
-      - name: Install dependencies
-        run: brew install sqlite icu4c
-
       - name: Download SQLite source
         env:
           VERSION: ${{ needs.check-version.outputs.version }}
