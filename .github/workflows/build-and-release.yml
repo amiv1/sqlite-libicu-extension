@@ -70,7 +70,7 @@ jobs:
 
   build-macos:
     needs: check-version
-    if: needs.check-version.outputs.should-release == 'true' || needs.check-version.outputs.icu-changed == 'true'
+    if: needs.check-version.outputs.should-release == 'true' && needs.check-version.outputs.icu-changed == 'true'
     runs-on: macos-14
     steps:
       - name: Download SQLite source
@@ -112,7 +112,7 @@ jobs:
 
   build-linux-x64:
     needs: check-version
-    if: needs.check-version.outputs.should-release == 'true' || needs.check-version.outputs.icu-changed == 'true'
+    if: needs.check-version.outputs.should-release == 'true' && needs.check-version.outputs.icu-changed == 'true'
     runs-on: ubuntu-latest  # ubuntu-latest is x64
     steps:
       - name: Install dependencies
